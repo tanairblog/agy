@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interferencia Teszt v2.0</title>
+    <title>Interferencia Teszt v3.0 - Folyamatos Szöveg</title>
     <style>
         :root {
             --bg: #0f172a;
@@ -39,7 +39,6 @@
             border: 1px solid rgba(255,255,255,0.1);
         }
 
-        /* Központi játéktér */
         #game-area {
             display: flex;
             flex-direction: column;
@@ -49,7 +48,6 @@
             gap: 30px;
         }
 
-        /* Mérleg rész */
         #balance-zone {
             width: 100%;
             height: 250px;
@@ -84,7 +82,6 @@
             box-shadow: 0 0 20px rgba(244, 63, 94, 0.6);
         }
 
-        /* Görgethető vers rész */
         #poem-viewport {
             width: 100%;
             height: 150px;
@@ -98,11 +95,11 @@
         #poem-scroll {
             position: absolute;
             width: 100%;
-            top: 100%;
+            top: 100%; /* Ez változik dinamikusan */
             text-align: center;
             font-size: 1.2rem;
             line-height: 1.8;
-            color: #94a3b8;
+            color: #475569; /* Halványabb, ha nem aktív */
             transition: color 0.3s;
         }
 
@@ -137,24 +134,23 @@
 <body>
 
     <div id="setup-screen">
-        <h1 id="setup-title">Memória & Egyensúly</h1>
+        <h1 id="setup-title">Interferencia Vizsgálat</h1>
         <div id="phase-instruction">
-            <p>Készülj fel a mérésre!</p>
+            <p>A szöveg folyamatosan halad majd, ne állj meg az olvasással!</p>
         </div>
-        <button class="btn" onclick="startPhase()">Indítás</button>
+        <button class="btn" onclick="startPhase()">Kör indítása</button>
     </div>
 
     <div id="result-screen" class="hidden">
-        <h2>Kiértékelés</h2>
-        <p>Hibaérték (minél kisebb, annál stabilabb):</p>
+        <h2>Eredmények</h2>
         <table>
             <tbody id="result-body"></tbody>
         </table>
-        <button class="btn" onclick="location.reload()" style="margin-top:20px">Új mérés</button>
+        <button class="btn" onclick="location.reload()" style="margin-top:20px">Új mérés indítása</button>
     </div>
 
     <div id="game-area">
-        <div id="status-bar" class="status">Várakozás...</div>
+        <div id="status-bar" class="status">Készenlétben</div>
         
         <div id="balance-zone">
             <div id="beam">
@@ -209,7 +205,8 @@
     let ballPos = 0; 
     let ballVel = 0;
     let mouseX = 0;
-    let scrollPos = 100;
+    // GLOBÁLIS scroll pozíció, hogy ne nullázódjon le fázisok között
+    let globalScrollPos = 100;
     let results = [];
     let deviationSum = 0;
     let samples = 0;
@@ -229,13 +226,12 @@
         const phase = phases[currentIdx];
         
         ballPos = 0; ballVel = 0; deviationSum = 0; samples = 0;
-        scrollPos = 100;
         isRunning = true;
 
         if(phase.read) viewport.classList.add('reading-active');
         else viewport.classList.remove('reading-active');
 
-        document.getElementById('status-bar').innerText = `${phase.name} - Mérés folyamatban...`;
+        document.getElementById('status-bar').innerText = `${phase.name} (20 mp)`;
         
         requestAnimationFrame(gameLoop);
         setTimeout(endPhase, 20000);
@@ -244,37 +240,34 @@
     function gameLoop() {
         if (!isRunning) return;
 
-        // 1. Fizika: dőlésszög az egér alapján
         const angle = mouseX * 35; 
         beam.style.transform = `rotate(${angle}deg)`;
 
-        // 2. Gravitáció + RANDOM ZAJ (Perturbáció)
-        // A zaj biztosítja, hogy ne lehessen "megállni" a középponton
-        const noise = (Math.random() - 0.5) * 0.15;
+        // Fizika + Véletlenszerű perturbáció (zaj)
+        const noise = (Math.random() - 0.5) * 0.18;
         ballVel += Math.sin(angle * Math.PI / 180) * 0.12 + noise;
         ballPos += ballVel;
-        ballVel *= 0.985; // Súrlódás
+        ballVel *= 0.985;
 
-        // 3. Vizualizáció
         ball.style.left = `calc(50% + ${ballPos}%)`;
 
-        // 4. Görgetés (ha olvasni kell)
+        // GÖRDÜLÉS LOGIKA
+        // Csak akkor megy tovább a szöveg, ha olvasási fázis van
         if (phases[currentIdx].read) {
-            scrollPos -= 0.35; // Görgetési sebesség
-            poemScroll.style.top = scrollPos + "%";
+            globalScrollPos -= 0.175; // FELE OLYAN GYORS (0.35 volt)
+            poemScroll.style.top = globalScrollPos + "%";
         } else {
-            poemScroll.style.top = "100%";
+            // Csendes fázisban a szöveg áll és halvány
+            poemScroll.style.top = globalScrollPos + "%";
         }
 
-        // 5. Adatgyűjtés
         deviationSum += Math.abs(ballPos);
         samples++;
 
-        // Leesés kezelése
         if (ballPos > 50 || ballPos < -50) {
             ballPos = ballPos > 0 ? 48 : -48;
-            ballVel *= -0.5; // Visszapattan
-            deviationSum += 50; // Büntetés a hibáért
+            ballVel *= -0.4;
+            deviationSum += 60; // Nagyobb büntetés leesésért
         }
 
         requestAnimationFrame(gameLoop);
@@ -296,10 +289,10 @@
     function showSetup() {
         const p = phases[currentIdx];
         document.getElementById('setup-screen').classList.remove('hidden');
-        document.getElementById('setup-title').innerText = `${currentIdx + 1}. kör következik`;
+        document.getElementById('setup-title').innerText = `${currentIdx + 1}. szakasz`;
         document.getElementById('phase-instruction').innerHTML = `
-            <p>Kéz: <strong>${p.hand}</strong></p>
-            <p>${p.read ? "<strong>OLVASD</strong> a verset hangosan!" : "Maradj <strong>CSENDBEN</strong>!"}</p>
+            <p>Használd a <strong>${p.hand}</strong> kezedet az egéren.</p>
+            <p>${p.read ? "<strong>FOLYTASD</strong> a vers olvasását hangosan!" : "Végezd a feladatot <strong>CSENDBEN</strong>!"}</p>
         `;
     }
 
