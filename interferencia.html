@@ -3,17 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interferencia Teszt v3.0 - Folyamatos Szöveg</title>
+    <title>Interferencia Vizsgálat v4.0 - Diagrammal</title>
     <style>
         :root {
             --bg: #0f172a;
             --panel: #1e293b;
             --accent: #f43f5e;
             --text: #f8fafc;
+            --bar-color: #38bdf8;
         }
 
         body {
-            font-family: 'Segoe UI', sans-serif;
+            font-family: 'Segoe UI', system-ui, sans-serif;
             background-color: var(--bg);
             color: var(--text);
             margin: 0;
@@ -30,11 +31,11 @@
             position: absolute;
             z-index: 100;
             background: var(--panel);
-            padding: 2.5rem;
+            padding: 2rem;
             border-radius: 24px;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6);
             text-align: center;
-            max-width: 500px;
+            max-width: 600px;
             width: 90%;
             border: 1px solid rgba(255,255,255,0.1);
         }
@@ -45,12 +46,12 @@
             align-items: center;
             width: 100%;
             max-width: 800px;
-            gap: 30px;
+            gap: 20px;
         }
 
         #balance-zone {
             width: 100%;
-            height: 250px;
+            height: 220px;
             background: rgba(30, 41, 59, 0.5);
             border-radius: 20px;
             position: relative;
@@ -62,7 +63,7 @@
         }
 
         #beam {
-            width: 70%;
+            width: 75%;
             height: 12px;
             background: #f8fafc;
             border-radius: 6px;
@@ -71,12 +72,12 @@
         }
 
         #ball {
-            width: 28px;
-            height: 28px;
+            width: 26px;
+            height: 26px;
             background: var(--accent);
             border-radius: 50%;
             position: absolute;
-            top: -28px;
+            top: -26px;
             left: 50%;
             transform: translateX(-50%);
             box-shadow: 0 0 20px rgba(244, 63, 94, 0.6);
@@ -84,7 +85,7 @@
 
         #poem-viewport {
             width: 100%;
-            height: 150px;
+            height: 120px;
             overflow: hidden;
             position: relative;
             background: rgba(15, 23, 42, 0.8);
@@ -95,11 +96,11 @@
         #poem-scroll {
             position: absolute;
             width: 100%;
-            top: 100%; /* Ez változik dinamikusan */
+            top: 100%;
             text-align: center;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             line-height: 1.8;
-            color: #475569; /* Halványabb, ha nem aktív */
+            color: #475569;
             transition: color 0.3s;
         }
 
@@ -118,46 +119,82 @@
         }
         .btn:hover { transform: scale(1.05); }
 
-        .status {
-            font-size: 1.1rem;
+        .status { font-size: 1rem; color: #94a3b8; margin-bottom: 5px; }
+
+        /* Diagram stílusok */
+        .chart-container {
+            margin-top: 20px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            height: 150px;
+            gap: 10px;
+            padding-bottom: 30px;
+        }
+
+        .bar-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+            justify-content: flex-end;
+        }
+
+        .bar {
+            width: 100%;
+            background: var(--bar-color);
+            border-top-left-radius: 5px;
+            border-top-right-radius: 5px;
+            min-height: 2px;
+            transition: height 1s ease-out;
+            position: relative;
+        }
+
+        .bar-label {
+            font-size: 0.75rem;
+            margin-top: 8px;
+            white-space: nowrap;
             color: #94a3b8;
-            margin-bottom: 10px;
+        }
+
+        .bar-value {
+            position: absolute;
+            top: -20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: var(--text);
+            width: 100%;
+            text-align: center;
         }
 
         .hidden { display: none !important; }
-        
-        table { width: 100%; margin-top: 20px; border-radius: 10px; overflow: hidden; }
-        th { background: #334155; padding: 10px; }
-        td { padding: 10px; background: rgba(255,255,255,0.05); border-bottom: 1px solid #334155; }
     </style>
 </head>
 <body>
 
     <div id="setup-screen">
-        <h1 id="setup-title">Interferencia Vizsgálat</h1>
+        <h1 id="setup-title">Interferencia Teszt</h1>
         <div id="phase-instruction">
-            <p>A szöveg folyamatosan halad majd, ne állj meg az olvasással!</p>
+            <p>A szöveg lassítva, folyamatosan halad.</p>
         </div>
         <button class="btn" onclick="startPhase()">Kör indítása</button>
     </div>
 
     <div id="result-screen" class="hidden">
         <h2>Eredmények</h2>
-        <table>
-            <tbody id="result-body"></tbody>
-        </table>
-        <button class="btn" onclick="location.reload()" style="margin-top:20px">Új mérés indítása</button>
+        <div id="chart" class="chart-container"></div>
+        <p style="font-size: 0.9rem; color: #94a3b8; margin-top: 10px;">
+            A magasabb oszlop nagyobb hibát, azaz nehezebb koncentrációt jelent.
+        </p>
+        <button class="btn" onclick="location.reload()" style="margin-top:20px">Új mérés</button>
     </div>
 
     <div id="game-area">
         <div id="status-bar" class="status">Készenlétben</div>
-        
         <div id="balance-zone">
-            <div id="beam">
-                <div id="ball"></div>
-            </div>
+            <div id="beam"><div id="ball"></div></div>
         </div>
-
         <div id="poem-viewport">
             <div id="poem-scroll">
                 Hősvértől pirosult gyásztér, sóhajtva köszöntlek,<br>
@@ -194,22 +231,18 @@
 
 <script>
     const phases = [
-        { name: "Jobb kéz (Csendes)", hand: "JOBB", read: false },
-        { name: "Bal kéz (Csendes)", hand: "BAL", read: false },
-        { name: "Jobb kéz (Olvasás)", hand: "JOBB", read: true },
-        { name: "Bal kéz (Olvasás)", hand: "BAL", read: true }
+        { name: "Jobb kéz (Cs)", short: "Jobb Cs", hand: "JOBB", read: false },
+        { name: "Bal kéz (Cs)", short: "Bal Cs", hand: "BAL", read: false },
+        { name: "Jobb kéz (Ol)", short: "Jobb Ol", hand: "JOBB", read: true },
+        { name: "Bal kéz (Ol)", short: "Bal Ol", hand: "BAL", read: true }
     ];
 
     let currentIdx = 0;
     let isRunning = false;
-    let ballPos = 0; 
-    let ballVel = 0;
-    let mouseX = 0;
-    // GLOBÁLIS scroll pozíció, hogy ne nullázódjon le fázisok között
+    let ballPos = 0, ballVel = 0, mouseX = 0;
     let globalScrollPos = 100;
     let results = [];
-    let deviationSum = 0;
-    let samples = 0;
+    let deviationSum = 0, samples = 0;
 
     const ball = document.getElementById('ball');
     const beam = document.getElementById('beam');
@@ -224,84 +257,81 @@
     function startPhase() {
         document.getElementById('setup-screen').classList.add('hidden');
         const phase = phases[currentIdx];
-        
         ballPos = 0; ballVel = 0; deviationSum = 0; samples = 0;
         isRunning = true;
-
         if(phase.read) viewport.classList.add('reading-active');
         else viewport.classList.remove('reading-active');
-
-        document.getElementById('status-bar').innerText = `${phase.name} (20 mp)`;
-        
+        document.getElementById('status-bar').innerText = `${phase.name} - Mérés...`;
         requestAnimationFrame(gameLoop);
         setTimeout(endPhase, 20000);
     }
 
     function gameLoop() {
         if (!isRunning) return;
-
         const angle = mouseX * 35; 
         beam.style.transform = `rotate(${angle}deg)`;
-
-        // Fizika + Véletlenszerű perturbáció (zaj)
-        const noise = (Math.random() - 0.5) * 0.18;
+        const noise = (Math.random() - 0.5) * 0.22; // Kicsit erősebb zaj az érezhetőbb kontrollért
         ballVel += Math.sin(angle * Math.PI / 180) * 0.12 + noise;
         ballPos += ballVel;
         ballVel *= 0.985;
-
         ball.style.left = `calc(50% + ${ballPos}%)`;
 
-        // GÖRDÜLÉS LOGIKA
-        // Csak akkor megy tovább a szöveg, ha olvasási fázis van
         if (phases[currentIdx].read) {
-            globalScrollPos -= 0.175; // FELE OLYAN GYORS (0.35 volt)
+            globalScrollPos -= 0.0875; // EXTRA LASSÚ (előző fele)
             poemScroll.style.top = globalScrollPos + "%";
         } else {
-            // Csendes fázisban a szöveg áll és halvány
             poemScroll.style.top = globalScrollPos + "%";
         }
 
         deviationSum += Math.abs(ballPos);
         samples++;
-
         if (ballPos > 50 || ballPos < -50) {
             ballPos = ballPos > 0 ? 48 : -48;
-            ballVel *= -0.4;
-            deviationSum += 60; // Nagyobb büntetés leesésért
+            ballVel *= -0.3;
+            deviationSum += 70;
         }
-
         requestAnimationFrame(gameLoop);
     }
 
     function endPhase() {
         isRunning = false;
-        const score = (deviationSum / samples).toFixed(2);
-        results.push({ name: phases[currentIdx].name, score: score });
-
+        results.push({ 
+            name: phases[currentIdx].name, 
+            short: phases[currentIdx].short,
+            score: parseFloat((deviationSum / samples).toFixed(2)) 
+        });
         currentIdx++;
-        if (currentIdx < phases.length) {
-            showSetup();
-        } else {
-            showFinalResults();
-        }
+        if (currentIdx < phases.length) showSetup();
+        else showFinalResults();
     }
 
     function showSetup() {
         const p = phases[currentIdx];
         document.getElementById('setup-screen').classList.remove('hidden');
-        document.getElementById('setup-title').innerText = `${currentIdx + 1}. szakasz`;
+        document.getElementById('setup-title').innerText = `${currentIdx + 1}. fázis`;
         document.getElementById('phase-instruction').innerHTML = `
-            <p>Használd a <strong>${p.hand}</strong> kezedet az egéren.</p>
-            <p>${p.read ? "<strong>FOLYTASD</strong> a vers olvasását hangosan!" : "Végezd a feladatot <strong>CSENDBEN</strong>!"}</p>
+            <p>Kéz: <strong>${p.hand}</strong></p>
+            <p>${p.read ? "<strong>OLVASD</strong> hangosan!" : "Maradj <strong>CSENDBEN</strong>!"}</p>
         `;
     }
 
     function showFinalResults() {
         document.getElementById('result-screen').classList.remove('hidden');
-        const body = document.getElementById('result-body');
-        body.innerHTML = results.map(r => `<tr><td>${r.name}</td><td>${r.score}</td></tr>`).join('');
+        const chart = document.getElementById('chart');
+        const maxScore = Math.max(...results.map(r => r.score), 10);
+
+        chart.innerHTML = results.map(r => {
+            const height = (r.score / maxScore) * 100;
+            return `
+                <div class="bar-wrapper">
+                    <div class="bar" style="height: ${height}%">
+                        <div class="bar-value">${r.score}</div>
+                    </div>
+                    <div class="bar-label">${r.short}</div>
+                </div>
+            `;
+        }).join('');
     }
 </script>
-
 </body>
 </html>
