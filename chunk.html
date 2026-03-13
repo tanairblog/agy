@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memória Teszt</title>
+    <style>
+        :root {
+            --primary: #00b894;
+            --bg: #0f172a;
+            --text: #f8fafc;
+            --card: #1e293b;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+
+        #app {
+            background: var(--card);
+            padding: 2.5rem;
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            width: 90%;
+            max-width: 550px;
+        }
+
+        .number-display {
+            font-size: 3.2rem;
+            font-weight: 800;
+            margin: 2rem 0;
+            min-height: 5rem;
+            font-family: 'Courier New', monospace;
+            color: var(--primary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Gombok elrendezése távolsággal */
+        .btn-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px; /* Megszünteti a torlódást */
+            align-items: center;
+        }
+
+        input {
+            background: #334155;
+            border: 2px solid #475569;
+            border-radius: 12px;
+            color: white;
+            font-size: 2rem;
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+            margin-bottom: 20px;
+            outline: none;
+        }
+
+        input:focus { border-color: var(--primary); }
+
+        .btn {
+            background: var(--primary);
+            color: #0f172a;
+            border: none;
+            padding: 15px 35px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 12px;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        .btn:hover { background-color: #55efc4; }
+        .btn:active { transform: scale(0.98); }
+
+        #timer-wrap {
+            width: 100%;
+            height: 6px;
+            background: #334155;
+            border-radius: 3px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            display: none;
+        }
+
+        #timer-bar {
+            height: 100%;
+            background: var(--primary);
+            width: 100%;
+        }
+
+        .hidden { display: none !important; }
+        .result-box { text-align: left; background: #0f172a; padding: 15px; border-radius: 12px; margin-top: 15px; }
+        .match-score { font-size: 1.5rem; color: #55efc4; font-weight: bold; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <h1>Memória teszt</h1>
+    <p id="instr">Nézzük meg, hogyan segít a csoportosítás!</p>
+
+    <div id="menu" class="btn-container">
+        <button class="btn" onclick="startTest(false)">Számsor</button>
+        <button class="btn" onclick="startTest(true)" style="background: #0984e3; color: white;">Csoportosítva</button>
+    </div>
+
+    <div id="display-area" class="hidden">
+        <div id="timer-wrap"><div id="timer-bar"></div></div>
+        <div id="number-out" class="number-display"></div>
+    </div>
+
+    <div id="recall-area" class="hidden">
+        <p>Írd be a számokat fejből!</p>
+        <input type="text" id="user-input" maxlength="12" autocomplete="off" placeholder="12 jegyű szám">
+        <button class="btn" onclick="checkAnswer()">Ellenőrzés</button>
+    </div>
+
+    <div id="result-area" class="hidden">
+        <h2 id="final-status"></h2>
+        <div id="match-count" class="match-score"></div>
+        <div class="result-box">
+            <p>Eredeti: <span id="orig-num" style="color: #00b894; font-family: monospace;"></span></p>
+            <p>Te írtad: <span id="user-num" style="color: #ff7675; font-family: monospace;"></span></p>
+        </div>
+        <button class="btn" onclick="location.reload()" style="margin-top:20px">Új teszt</button>
+    </div>
+</div>
+
+<script>
+    let currentNumber = "";
+    let isChunkedMode = false;
+
+    function generateNumber(length) {
+        let res = "";
+        for(let i=0; i<length; i++) res += Math.floor(Math.random()*10);
+        return res;
+    }
+
+    function startTest(chunked) {
+        isChunkedMode = chunked;
+        currentNumber = generateNumber(12);
+        
+        document.getElementById('menu').classList.add('hidden');
+        document.getElementById('instr').classList.add('hidden');
+        document.getElementById('display-area').classList.remove('hidden');
+        document.getElementById('timer-wrap').style.display = 'block';
+
+        const output = document.getElementById('number-out');
+        
+        if(isChunkedMode) {
+            output.innerText = currentNumber.match(/.{1,4}/g).join(" ");
+        } else {
+            output.innerText = currentNumber;
+        }
+
+        let timeLeft = 5000;
+        const timerBar = document.getElementById('timer-bar');
+        const interval = setInterval(() => {
+            timeLeft -= 50;
+            timerBar.style.width = (timeLeft / 5000 * 100) + "%";
+            if(timeLeft <= 0) {
+                clearInterval(interval);
+                showRecall();
+            }
+        }, 50);
+    }
+
+    function showRecall() {
+        document.getElementById('display-area').classList.add('hidden');
+        document.getElementById('recall-area').classList.remove('hidden');
+        document.getElementById('user-input').focus();
+    }
+
+    function checkAnswer() {
+        const userVal = document.getElementById('user-input').value.trim();
+        document.getElementById('recall-area').classList.add('hidden');
+        document.getElementById('result-area').classList.remove('hidden');
+
+        // Pozíció alapú számolás
+        let matches = 0;
+        const compareLen = Math.min(userVal.length, currentNumber.length);
+        
+        for (let i = 0; i < currentNumber.length; i++) {
+            if (userVal[i] === currentNumber[i]) {
+                matches++;
+            }
+        }
+
+        const scoreText = document.getElementById('match-count');
+        scoreText.innerText = `Találatok: ${matches} / 12`;
+        
+        if (matches === 12) {
+            document.getElementById('final-status').innerText = "Tökéletes! 🎉";
+            document.getElementById('final-status').style.color = "#55efc4";
+        } else if (matches > 8) {
+            document.getElementById('final-status').innerText = "Nagyon jó! 👏";
+            document.getElementById('final-status').style.color = "#81ecec";
+        } else {
+            document.getElementById('final-status').innerText = "Gyakorolj még!";
+            document.getElementById('final-status').style.color = "#ff7675";
+        }
+        
+        document.getElementById('orig-num').innerText = currentNumber;
+        document.getElementById('user-num').innerText = userVal || "(üres)";
+    }
+</script>
+
+</body>
+</html>

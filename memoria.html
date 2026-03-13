@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Memória Teszt - Final Version</title>
+    <style>
+        :root {
+            --primary: #6c5ce7;
+            --bg: #1e1e2e;
+            --text: #cdd6f4;
+            --container-bg: #313244;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            user-select: none;
+            overflow: hidden;
+        }
+
+        #app {
+            background: var(--container-bg);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            text-align: center;
+            width: 95%;
+            max-width: 700px;
+            position: relative;
+            z-index: 10;
+        }
+
+        #perspective-container {
+            width: 100%;
+            height: 450px;
+            margin: 20px 0;
+            background-color: #181825;
+            border-radius: 12px;
+            position: relative;
+            perspective: 800px; 
+            overflow: hidden;
+            display: none;
+        }
+
+        #perspective-floor {
+            position: absolute;
+            bottom: -50px;
+            left: 0;
+            width: 100%;
+            height: 250px;
+            background: linear-gradient(to top, #45475a, #181825);
+            transform: rotateX(65deg);
+            z-index: 1;
+        }
+
+        /* EGYSÉGES MÉRET: 80px mindkét tesztben */
+        .emoji-3d {
+            font-size: 80px;
+            position: absolute;
+            transform-style: preserve-3d;
+            transition: all 0.3s;
+            z-index: 2;
+            line-height: 1;
+        }
+
+        .emoji-display { 
+            font-size: 80px; 
+            min-height: 120px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+        }
+        
+        .recall-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        .recall-btn {
+            font-size: 30px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 2px solid #45475a;
+            border-radius: 12px;
+            background: #1e1e2e;
+            color: var(--text);
+            transition: all 0.2s;
+        }
+
+        .recall-btn.selected { 
+            background-color: #a29bfe; 
+            border-color: var(--primary);
+            color: #11111b;
+            transform: scale(1.05);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px 35px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 12px;
+            cursor: pointer;
+            margin: 12px;
+        }
+
+        .hidden { display: none !important; }
+        #timer-bar { height: 6px; background: var(--primary); width: 100%; transition: width linear; margin-bottom: 15px; border-radius: 3px;}
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <h1 id="title">Memória teszt</h1>
+    
+    <div id="menu">
+        <p>Hogyan jegyezzük meg jobban?</p>
+        <button class="btn" onclick="startTest('sequential')">Sorozatos</button>
+        <button class="btn" onclick="startTest('spatial')">Térbeli (Perspektíva)</button>
+    </div>
+
+    <div id="display-area" class="hidden">
+        <div id="timer-bar" class="hidden"></div>
+        <div id="single-emoji" class="emoji-display"></div>
+        <div id="perspective-container">
+            <div id="perspective-floor"></div>
+        </div>
+    </div>
+
+    <div id="recall-area" class="hidden">
+        <p>Válaszd ki az <strong>5 emojit</strong>! (<span id="count">0</span>/5)</p>
+        <div id="recall-buttons" class="recall-grid"></div>
+        <button id="submit-btn" class="btn" style="margin-top:25px" onclick="checkResults()">Ellenőrzés</button>
+    </div>
+
+    <div id="result-area" class="hidden">
+        <h2 id="score-text"></h2>
+        <p id="time-text"></p>
+        <div id="review-area" style="margin-bottom: 25px; font-size: 26px;"></div>
+        <button class="btn" onclick="location.reload()">Új játék</button>
+    </div>
+</div>
+
+<script>
+    // 50 darab garantáltan emoji elem
+    const emojiPool = [
+        "🍎", "🚀", "🎸", "🦒", "🍕", "🏝️", "🛸", "🧠", "🦁", "🍦", 
+        "⚽", "🚲", "💎", "🌋", "🍄", "🤖", "🔥", "🦄", "🌈", "🦜", 
+        "🎭", "🍿", "🌵", "⚓", "👑", "🛹", "🍣", "🧸", "🔔", "🐉", 
+        "🧳", "📸", "🎧", "💡", "🧶", "🧪", "🦠", "🧬", "🔭", "🔬", 
+        "🏰", "⛺", "⛩️", "🎡", "🎢", "🎪", "🎥", "🎨", "🎷", "🪗"
+    ];
+    
+    let targetEmojis = [];
+    let selectedEmojis = [];
+    let mode = '';
+    let startTime;
+
+    function startTest(selectedMode) {
+        mode = selectedMode;
+        targetEmojis = [...emojiPool].sort(() => 0.5 - Math.random()).slice(0, 5);
+        document.getElementById('menu').classList.add('hidden');
+        document.getElementById('display-area').classList.remove('hidden');
+
+        if (mode === 'sequential') {
+            document.getElementById('single-emoji').classList.remove('hidden');
+            document.getElementById('perspective-container').style.display = 'none';
+            runSequential();
+        } else {
+            document.getElementById('single-emoji').classList.add('hidden');
+            document.getElementById('perspective-container').style.display = 'block';
+            runSpatial();
+        }
+    }
+
+    function runSequential() {
+        let count = 0;
+        const display = document.getElementById('single-emoji');
+        const interval = setInterval(() => {
+            if (count < targetEmojis.length) {
+                display.innerText = targetEmojis[count];
+                count++;
+            } else {
+                clearInterval(interval);
+                setTimeout(showRecall, 800);
+            }
+        }, 1000);
+    }
+
+    function runSpatial() {
+        const container = document.getElementById('perspective-container');
+        const timerBar = document.getElementById('timer-bar');
+        timerBar.classList.remove('hidden');
+        container.querySelectorAll('.emoji-3d').forEach(e => e.remove());
+        
+        timerBar.style.width = '100%';
+        setTimeout(() => timerBar.style.width = '0%', 10);
+
+        targetEmojis.forEach((emoji) => {
+            const span = document.createElement('span');
+            span.className = 'emoji-3d';
+            span.innerText = emoji;
+            
+            // Koordináták szűkítése, hogy ne lógjanak ki (25% - 75%)
+            const posX = Math.random() * 50 + 25;
+            const posY = Math.random() * 40 + 25;
+            const posZ = Math.random() * 150; 
+            
+            // Enyhe skálázás a 3D érzethez, de a 80px-es hangsúly megmarad
+            const scaleFactor = 1.0 - (posZ / 150) * 0.2;
+            
+            span.style.left = `${posX}%`;
+            span.style.top = `${posY}%`;
+            span.style.transform = `translate3d(-50%, -50%, ${posZ}px) scale(${scaleFactor})`;
+            
+            container.appendChild(span);
+        });
+
+        setTimeout(showRecall, 5000);
+    }
+
+    function showRecall() {
+        document.getElementById('display-area').classList.add('hidden');
+        document.getElementById('recall-area').classList.remove('hidden');
+        startTime = performance.now();
+        const grid = document.getElementById('recall-buttons');
+        grid.innerHTML = '';
+        
+        let distractors = emojiPool.filter(e => !targetEmojis.includes(e)).sort(() => 0.5 - Math.random()).slice(0, 15);
+        let recallSet = [...targetEmojis, ...distractors].sort(() => 0.5 - Math.random());
+
+        recallSet.forEach(emoji => {
+            const btn = document.createElement('button');
+            btn.className = 'recall-btn';
+            btn.innerText = emoji;
+            btn.onclick = () => {
+                if (selectedEmojis.includes(emoji)) {
+                    selectedEmojis = selectedEmojis.filter(e => e !== emoji);
+                    btn.classList.remove('selected');
+                } else if (selectedEmojis.length < 5) {
+                    selectedEmojis.push(emoji);
+                    btn.classList.add('selected');
+                }
+                document.getElementById('count').innerText = selectedEmojis.length;
+            };
+            grid.appendChild(btn);
+        });
+    }
+
+    function checkResults() {
+        const duration = ((performance.now() - startTime) / 1000).toFixed(1);
+        const score = selectedEmojis.filter(e => targetEmojis.includes(e)).length;
+        document.getElementById('recall-area').classList.add('hidden');
+        document.getElementById('result-area').classList.remove('hidden');
+        document.getElementById('score-text').innerText = `${score} / 5 találat`;
+        document.getElementById('time-text').innerText = `Döntési idő: ${duration} mp`;
+        document.getElementById('review-area').innerHTML = `<small>Megoldás:</small><br>` + targetEmojis.join(" ");
+    }
+</script>
+
+</body>
+</html>

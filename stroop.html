@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stroop-hatás Mérő</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+        }
+
+        #game-container {
+            text-align: center;
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        #word-display {
+            font-size: 72px;
+            font-weight: bold;
+            margin: 40px 0;
+            min-height: 100px;
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        button {
+            padding: 15px 25px;
+            font-size: 18px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            transition: transform 0.1s, background-color 0.2s;
+            color: white;
+            font-weight: bold;
+        }
+
+        button:active { transform: scale(0.95); }
+
+        .btn-piros { background-color: #e74c3c; }
+        .btn-kek { background-color: #3498db; }
+        .btn-zold { background-color: #27ae60; }
+        .btn-sarga { background-color: #f1c40f; color: #2c3e50; }
+
+        #start-btn {
+            background-color: #2c3e50;
+            margin-top: 20px;
+        }
+
+        #results {
+            margin-top: 20px;
+            text-align: left;
+            display: none;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <h1>Stroop-teszt</h1>
+    <p id="instruction">Válaszd ki a szó <strong>színét</strong>, ne a feliratot!</p>
+    
+    <div id="word-display" class="hidden">SZÓ</div>
+
+    <div id="controls">
+        <button id="start-btn">Teszt indítása</button>
+    </div>
+
+    <div id="action-buttons" class="button-grid hidden">
+        <button class="btn-piros" onclick="checkResponse('piros')">Piros</button>
+        <button class="btn-kek" onclick="checkResponse('kék')">Kék</button>
+        <button class="btn-zold" onclick="checkResponse('zöld')">Zöld</button>
+        <button class="btn-sarga" onclick="checkResponse('sárga')">Sárga</button>
+    </div>
+
+    <div id="results">
+        <h3>Eredmények:</h3>
+        <p id="congruent-res"></p>
+        <p id="incongruent-res"></p>
+        <p id="interference"></p>
+        <button onclick="location.reload()" style="background: #7f8c8d; width: 100%;">Újrapróbálom</button>
+    </div>
+</div>
+
+<script>
+    const words = ["PIROS", "KÉK", "ZÖLD", "SÁRGA"];
+    const colors = {
+        "piros": "#e74c3c",
+        "kék": "#3498db",
+        "zöld": "#27ae60",
+        "sárga": "#f1c40f"
+    };
+    const colorNames = Object.keys(colors);
+
+    let trials = [];
+    let currentTrial = {};
+    let startTime;
+    let trialCount = 0;
+    const MAX_TRIALS = 20;
+
+    const startBtn = document.getElementById('start-btn');
+    const wordDisplay = document.getElementById('word-display');
+    const actionButtons = document.getElementById('action-buttons');
+    const resultsDiv = document.getElementById('results');
+
+    startBtn.addEventListener('click', startTest);
+
+    function startTest() {
+        startBtn.classList.add('hidden');
+        document.getElementById('instruction').classList.add('hidden');
+        wordDisplay.classList.remove('hidden');
+        actionButtons.classList.remove('hidden');
+        nextTrial();
+    }
+
+    function nextTrial() {
+        if (trialCount >= MAX_TRIALS) {
+            showResults();
+            return;
+        }
+
+        const randomWordIndex = Math.floor(Math.random() * words.length);
+        const randomColorIndex = Math.floor(Math.random() * colorNames.length);
+        
+        const wordText = words[randomWordIndex];
+        const colorName = colorNames[randomColorIndex];
+        const isCongruent = (randomWordIndex === randomColorIndex);
+
+        wordDisplay.innerText = wordText;
+        wordDisplay.style.color = colors[colorName];
+        
+        currentTrial = {
+            isCongruent: isCongruent,
+            correctColor: colorName
+        };
+
+        startTime = performance.now();
+        trialCount++;
+    }
+
+    function checkResponse(selectedColor) {
+        const endTime = performance.now();
+        const reactionTime = endTime - startTime;
+
+        if (selectedColor === currentTrial.correctColor) {
+            trials.push({
+                rt: reactionTime,
+                congruent: currentTrial.isCongruent
+            });
+        }
+        // Megjegyzés: A hibás válaszokat most egyszerűen kihagyjuk a statisztikából
+        
+        nextTrial();
+    }
+
+    function showResults() {
+        wordDisplay.classList.add('hidden');
+        actionButtons.classList.add('hidden');
+        resultsDiv.style.display = 'block';
+
+        const congruentTrials = trials.filter(t => t.congruent).map(t => t.rt);
+        const incongruentTrials = trials.filter(t => !t.congruent).map(t => t.rt);
+
+        const avgCongruent = congruentTrials.reduce((a, b) => a + b, 0) / congruentTrials.length || 0;
+        const avgIncongruent = incongruentTrials.reduce((a, b) => a + b, 0) / incongruentTrials.length || 0;
+
+        document.getElementById('congruent-res').innerText = `Egyező (pl. piros színnel írt PIROS): ${avgCongruent.toFixed(0)} ms`;
+        document.getElementById('incongruent-res').innerText = `Eltérő (pl. kék színnel írt PIROS): ${avgIncongruent.toFixed(0)} ms`;
+        
+        const diff = avgIncongruent - avgCongruent;
+        document.getElementById('interference').innerHTML = `<strong>Stroop-interferencia: ${diff.toFixed(0)} ms</strong><br><small>(Ennyivel lassabb az agyad, ha ellentmondást kell feldolgoznia.)</small>`;
+    }
+</script>
+
+</body>
+</html>

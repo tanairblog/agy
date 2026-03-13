@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reakcióidő: Fény vs. Hang</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --test-area-bg: #16213e;
+            --visual-color: #00d2ff;
+            --error-color: #ff4d4d;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg-color);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            user-select: none;
+        }
+
+        #container {
+            text-align: center;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        #test-area {
+            width: 100%;
+            height: 300px;
+            background-color: var(--test-area-bg);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            transition: background-color 0.05s;
+            margin: 20px 0;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .btn {
+            background: #e94560;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        /* Csak a vizuális tesztnél használunk színt */
+        .visual-active { background-color: var(--visual-color) !important; color: #1a1a2e; }
+        .error-active { background-color: var(--error-color) !important; }
+        
+        .hidden { display: none !important; }
+        
+        table {
+            width: 100%;
+            margin-top: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        th, td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body>
+
+<div id="container">
+    <h1>Reakcióidő Mérő</h1>
+    <p id="main-instruction">Válassz egy tesztet!</p>
+
+    <div id="menu">
+        <button class="btn" onclick="startTest('visual')">👁️ Vizuális</button>
+        <button class="btn" onclick="startTest('audio')">👂 Audió (Csak hang)</button>
+    </div>
+
+    <div id="test-area" class="hidden">
+        <span id="test-text">Kattints a kezdéshez!</span>
+    </div>
+
+    <div id="results" class="hidden">
+        <h2>Eredmények</h2>
+        <table>
+            <tr><td>Vizuális átlag:</td><td id="res-visual">-</td></tr>
+            <tr><td>Audió átlag:</td><td id="res-audio">-</td></tr>
+        </table>
+        <p id="comparison-text" style="padding: 20px; font-weight: bold;"></p>
+        <button class="btn" onclick="reset()">Vissza</button>
+    </div>
+</div>
+
+<script>
+    let testType = ''; 
+    let state = 'idle'; 
+    let startTime, timeoutId;
+    let results = { visual: [], audio: [] };
+    let trialCount = 0;
+    const MAX_TRIALS = 5;
+
+    const testArea = document.getElementById('test-area');
+    const testText = document.getElementById('test-text');
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playBeep() {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.frequency.value = 440;
+        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.01);
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+        osc.stop(audioCtx.currentTime + 0.2);
+    }
+
+    function startTest(type) {
+        testType = type;
+        trialCount = 0;
+        document.getElementById('menu').classList.add('hidden');
+        testArea.classList.remove('hidden');
+        prepareTrial();
+    }
+
+    function prepareTrial() {
+        state = 'idle';
+        testArea.classList.remove('visual-active', 'error-active');
+        testText.innerText = "Kattints, ha készen állsz!";
+    }
+
+    testArea.onmousedown = () => {
+        if (state === 'idle') {
+            state = 'waiting';
+            testText.innerText = "Várj a jelre...";
+            
+            const delay = Math.random() * 3000 + 1500;
+            timeoutId = setTimeout(() => {
+                state = 'active';
+                startTime = performance.now();
+                if (testType === 'visual') {
+                    testArea.classList.add('visual-active');
+                    testText.innerText = "MOST!";
+                } else {
+                    // Audió tesztnél nincs színváltás, csak a hang
+                    playBeep();
+                }
+            }, delay);
+
+        } else if (state === 'waiting') {
+            clearTimeout(timeoutId);
+            state = 'error';
+            testArea.classList.add('error-active');
+            testText.innerText = "Túl korai! Kattints újra.";
+        } else if (state === 'active') {
+            const rt = performance.now() - startTime;
+            results[testType].push(rt);
+            trialCount++;
+            
+            if (trialCount < MAX_TRIALS) {
+                testText.innerText = `${rt.toFixed(0)} ms. Következő...`;
+                state = 'idle';
+            } else {
+                showResults();
+            }
+        } else if (state === 'error') {
+            prepareTrial();
+        }
+    };
+
+    function showResults() {
+        testArea.classList.add('hidden');
+        document.getElementById('results').classList.remove('hidden');
+        
+        const avgV = results.visual.length ? (results.visual.reduce((a,b)=>a+b)/results.visual.length).toFixed(1) : "-";
+        const avgA = results.audio.length ? (results.audio.reduce((a,b)=>a+b)/results.audio.length).toFixed(1) : "-";
+
+        document.getElementById('res-visual').innerText = avgV + " ms";
+        document.getElementById('res-audio').innerText = avgA + " ms";
+
+        if(avgV !== "-" && avgA !== "-") {
+            const diff = Math.abs(avgV - avgA).toFixed(0);
+            document.getElementById('comparison-text').innerText = 
+                `A ${avgV < avgA ? 'vizuális' : 'auditoros'} reakciód ${diff} ms-mal gyorsabb.`;
+        }
+    }
+
+    function reset() {
+        document.getElementById('results').classList.add('hidden');
+        document.getElementById('menu').classList.remove('hidden');
+    }
+</script>
+</body>
+</html>
