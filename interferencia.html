@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kétoldali Interferencia Teszt</title>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --panel: #16213e;
+            --accent: #e94560;
+            --text: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #setup-screen, #result-screen {
+            position: absolute;
+            z-index: 100;
+            background: var(--panel);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: center;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 80%;
+            max-width: 500px;
+        }
+
+        #game-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+            gap: 20px;
+        }
+
+        /* Bal oldali szöveg panel */
+        #poem-panel {
+            flex: 1;
+            background: var(--panel);
+            padding: 25px;
+            border-radius: 15px;
+            overflow-y: auto;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            border: 2px solid transparent;
+            transition: border 0.3s;
+        }
+
+        .active-reading { border-color: var(--accent) !important; }
+
+        /* Jobb oldali egyensúlyozó panel */
+        #balance-panel {
+            flex: 1.5;
+            background: #0f3460;
+            border-radius: 15px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: none;
+        }
+
+        #beam {
+            width: 80%;
+            height: 10px;
+            background: #fff;
+            border-radius: 5px;
+            position: relative;
+            transform-origin: center center;
+        }
+
+        #ball {
+            width: 30px;
+            height: 30px;
+            background: var(--accent);
+            border-radius: 50%;
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 15px var(--accent);
+        }
+
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .btn:disabled { background: #555; }
+
+        .status-bar {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: bold;
+            font-size: 1.2rem;
+            background: rgba(0,0,0,0.3);
+            padding: 10px 20px;
+            border-radius: 20px;
+        }
+
+        .hidden { display: none !important; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; border-bottom: 1px solid #444; }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <h1>Egyensúly Teszt</h1>
+        <p>A feladat: tartsd a golyót a léc közepén az egér mozgatásával!</p>
+        <div id="phase-instruction">
+            <h3>1. fázis: Jobb kéz, Csendben</h3>
+            <p>Használd a <strong>JOBB</strong> kezedet az egéren.</p>
+        </div>
+        <button class="btn" onclick="startPhase()">Indítás</button>
+    </div>
+
+    <div id="result-screen" class="hidden">
+        <h2>Eredmények</h2>
+        <p>Az érték a golyó központtól való átlagos kitérése (minél kisebb, annál jobb).</p>
+        <table id="result-table">
+            <thead>
+                <tr><th>Fázis</th><th>Hibaérték</th></tr>
+            </thead>
+            <tbody id="result-body"></tbody>
+        </table>
+        <button class="btn" onclick="location.reload()">Újrakezdés</button>
+    </div>
+
+    <div id="game-container">
+        <div id="poem-panel">
+            <h2 id="poem-title" class="hidden">Kisfaludy Károly: Mohács (részlet)</h2>
+            <div id="poem-text" class="hidden">
+                Hősvértől pirosult gyásztér, sóhajtva köszöntlek,<br>
+                Nemzeti nagylétünk nagy temetője, Mohács!<br>
+                Hollószárnyaival lebegett a zordon Enyészet,<br>
+                S pusztitó erejét rád viharozta dühe,<br>
+                S vak diadalma jelét robogó villámival itten<br>
+                Honni vitéz seregink holttetemikre süté.<br><br>
+                Tomori! büszke vezér! mért hagytad el érseki széked;<br>
+                Nem halt volna hazánk disze, virága veled.<br>
+                Harcz tüze lángitá bizton viadalra kikelted',<br>
+                S érted mennyi dicsők estenek áldozatul!<br>
+                Szük vala egy ország! be kicsiny most néma lakásod?<br>
+                Tárogatód megszünt, rozsda emészti vasad,<br><br>
+                Nyugodj! rajtad üzé dölyfét a csalfa szerencse;<br>
+                A békitő sír enyhe takarja porod.<br>
+                Hány fiatal szivet, tele sok szép földi reménynyel<br>
+                Sujta le kegyetlen itt a riadó csatavész!<br>
+                Élte kies tavaszán kora sírt hány ifju talála,<br>
+                Kit nemrég az öröm lágy öle ringata még!<br><br>
+                Disztelen itt fekszik, deli termete összerutitva,<br>
+                Száguldó paripák vasszegü körmök alatt.<br>
+                Szög haja fürteivel nem játszik kedvese többé,<br>
+                Vér- s tapadó portól elmerevedtek azok.<br>
+                Hasztalan áll az uton váró hive friss koszoruval,<br>
+                Nem jön-e bajnoka még, félve reménylve vigyáz:<br><br>
+                Hogyha levél zördül, őt sejteti véle szerelme,<br>
+                Néz, piheg, arcza tüzel s keble feszülve haboz.<br>
+                Ah! de hiába tekint a távol lenge ködébe;<br>
+                Elmarad a kedvelt, s érzete búnak ered.
+            </div>
+        </div>
+
+        <div id="balance-panel">
+            <div class="status-bar" id="status-text">Várakozás...</div>
+            <div id="beam">
+                <div id="ball"></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const phases = [
+        { name: "Jobb kéz - Csendben", hand: "JOBB", read: false },
+        { name: "Bal kéz - Csendben", hand: "BAL", read: false },
+        { name: "Jobb kéz - Felolvasás", hand: "JOBB", read: true },
+        { name: "Bal kéz - Felolvasás", hand: "BAL", read: true }
+    ];
+
+    let currentPhaseIdx = 0;
+    let isRunning = false;
+    let ballPos = 0; // -50-től 50-ig (százalékban a léchez képest)
+    let ballVel = 0;
+    let beamAngle = 0;
+    let mouseX = 0;
+    let deviationSum = 0;
+    let sampleCount = 0;
+    let results = [];
+
+    const beam = document.getElementById('beam');
+    const ball = document.getElementById('ball');
+    const balancePanel = document.getElementById('balance-panel');
+    const statusText = document.getElementById('status-text');
+
+    // Egér követése
+    balancePanel.addEventListener('mousemove', (e) => {
+        const rect = balancePanel.getBoundingClientRect();
+        mouseX = ((e.clientX - rect.left) / rect.width) - 0.5; // -0.5 és 0.5 között
+    });
+
+    function startPhase() {
+        document.getElementById('setup-screen').classList.add('hidden');
+        const phase = phases[currentPhaseIdx];
+        
+        // Setup UI
+        statusText.innerText = `${phase.name} (Idő: 20s)`;
+        if (phase.read) {
+            document.getElementById('poem-panel').classList.add('active-reading');
+            document.getElementById('poem-text').classList.remove('hidden');
+            document.getElementById('poem-title').classList.remove('hidden');
+        } else {
+            document.getElementById('poem-panel').classList.remove('active-reading');
+            document.getElementById('poem-text').classList.add('hidden');
+            document.getElementById('poem-title').classList.add('hidden');
+        }
+
+        // Reset fizika
+        ballPos = 0;
+        ballVel = 0;
+        deviationSum = 0;
+        sampleCount = 0;
+        isRunning = true;
+
+        requestAnimationFrame(update);
+
+        // 20 másodperces körök
+        setTimeout(endPhase, 20000);
+    }
+
+    function update() {
+        if (!isRunning) return;
+
+        // A deszka dőlése az egér helyzetétől függ
+        beamAngle = mouseX * 40; // max 20 fokos dőlés
+        beam.style.transform = `rotate(${beamAngle}deg)`;
+
+        // Golyó fizikája: a dőlésszög gyorsítja a golyót
+        const gravity = 0.05;
+        ballVel += Math.sin(beamAngle * Math.PI / 180) * gravity;
+        ballPos += ballVel;
+
+        // Súrlódás (hogy ne legyen kezelhetetlen)
+        ballVel *= 0.98;
+
+        // Megjelenítés
+        // A deszka szélessége 80%, a golyó elmozdulása ehhez képest:
+        ball.style.left = `calc(50% + ${ballPos}%)`;
+
+        // Adatgyűjtés (hiba = távolság a középponttól)
+        deviationSum += Math.abs(ballPos);
+        sampleCount++;
+
+        // Ha leesik, visszarakjuk de büntetéssel
+        if (ballPos > 50 || ballPos < -50) {
+            ballPos = ballPos > 0 ? 45 : -45;
+            ballVel = 0;
+            deviationSum += 100; // Extra büntetés leesésért
+        }
+
+        requestAnimationFrame(update);
+    }
+
+    function endPhase() {
+        isRunning = false;
+        const avgError = deviationSum / sampleCount;
+        results.push({ name: phases[currentPhaseIdx].name, error: avgError.toFixed(2) });
+
+        currentPhaseIdx++;
+
+        if (currentPhaseIdx < phases.length) {
+            showSetup();
+        } else {
+            showResults();
+        }
+    }
+
+    function showSetup() {
+        const screen = document.getElementById('setup-screen');
+        const instr = document.getElementById('phase-instruction');
+        const phase = phases[currentPhaseIdx];
+
+        screen.classList.remove('hidden');
+        instr.innerHTML = `
+            <h3>${currentPhaseIdx + 1}. fázis: ${phase.name}</h3>
+            <p>Használd a <strong>${phase.hand}</strong> kezedet az egéren.</p>
+            ${phase.read ? '<p style="color:var(--accent)">Olvasd fel hangosan a verset egyensúlyozás közben!</p>' : '<p>Maradj csendben és koncentrálj!</p>'}
+        `;
+    }
+
+    function showResults() {
+        document.getElementById('result-screen').classList.remove('hidden');
+        const tbody = document.getElementById('result-body');
+        tbody.innerHTML = results.map(r => `<tr><td>${r.name}</td><td>${r.error}</td></tr>`).join('');
+    }
+</script>
+
+</body>
+</html>
